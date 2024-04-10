@@ -125,8 +125,11 @@ namespace mpc
 
         int retcode;
         double cost;
+        double primal_residual;
+        double dual_residual;
         ResultStatus status;
         cvec<Tnu> cmd;
+        int num_iterations;
     };
 
     template <

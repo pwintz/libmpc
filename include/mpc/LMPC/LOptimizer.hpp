@@ -322,12 +322,16 @@ namespace mpc
                     sequence.output.row(i - 1) = builder->mapToOutput(sequence.state.row(i - 1), extInputMeas.col(i - 1));
                 }
 
-                // the optimal command is the first control input in the sequence
+                // the optimal command is the first control input in the sequence.
                 r.cmd = sequence.input.row(0);
                 r.retcode = work->info->status_val;
                 r.cost = work->info->obj_val;
+                r.primal_residual = work->info->pri_res;// Constraint error norm.
+                r.dual_residual = work->info->dua_res;// Dual error norm.
+
                 // convert the return code from the optimizer to the result status
                 r.status = convertToResultStatus(r.retcode);
+                r.num_iterations = work->info->iter;
             }
             else
             {
