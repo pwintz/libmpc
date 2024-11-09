@@ -106,14 +106,15 @@ namespace mpc
 
     struct MPCSize
     {
-        constexpr MPCSize(const int nx,
-                          const int nu,
-                          const int ndu,
-                          const int ny,
-                          const int ph,
-                          const int ch,
-                          const int ineq,
-                          const int eq) : nx(nx), nu(nu),
+        constexpr MPCSize(const int nx,  // Dimension of state
+                          const int nu,  // Dimension of input
+                          const int ndu, // Dimension of disturbance
+                          const int ny,  // Dimension of output
+                          const int ph,  // Prediction horizon
+                          const int ch,  // Control horizon
+                          const int ineq,// Number of inequality constraints
+                          const int eq   // Number of equality constraints
+                                      ) : nx(nx), nu(nu),
                                           ndu(ndu),
                                           ny(ny),
                                           ph(ph),
@@ -121,14 +122,14 @@ namespace mpc
                                           ineq(ineq),
                                           eq(eq) {}
 
-        Size nx;
-        Size nu;
-        Size ndu;
-        Size ny;
-        Size ph;
-        Size ch;
-        Size ineq;
-        Size eq;
+        Size nx;  // Dimension of state
+        Size nu;  // Dimension of input
+        Size ndu; // Dimension of disturbance
+        Size ny;  // Dimension of output
+        Size ph;  // Prediction horizon
+        Size ch;  // Control horizon
+        Size ineq;// Number of inequality constraints
+        Size eq;  // Number of equality constraints
     };
 
 } // namespace mpc

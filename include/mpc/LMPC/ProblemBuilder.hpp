@@ -25,14 +25,14 @@ namespace mpc
     {
     private:
         using IComponent<sizer>::checkOrQuit;
-        using IComponent<sizer>::nu;
-        using IComponent<sizer>::nx;
-        using IComponent<sizer>::ndu;
-        using IComponent<sizer>::ny;
-        using IComponent<sizer>::ph;
-        using IComponent<sizer>::ch;
-        using IComponent<sizer>::ineq;
-        using IComponent<sizer>::eq;
+        using IComponent<sizer>::nx;  // Dimension of statu
+        using IComponent<sizer>::nu;  // Dimension of input
+        using IComponent<sizer>::ndu; // Dimension of disturbance
+        using IComponent<sizer>::ny;  // Dimension of output
+        using IComponent<sizer>::ph;  // Prediction horizon
+        using IComponent<sizer>::ch;  // Control horizon
+        using IComponent<sizer>::ineq;// Number of inequality constraints
+        using IComponent<sizer>::eq;  // Number of equality constraints
 
     public:
         /**
@@ -67,11 +67,13 @@ namespace mpc
             }
 
             // objective_matrix is P
-            mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu)), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> P;
+            mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu)), 
+                (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> P;
             // objective_vector is q
             cvec<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> q;
             // constraint_matrix is A
-            mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu))) + (sizer.ph + 1)), (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> A;
+            mat<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu))) + (sizer.ph + 1)), 
+                (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (sizer.ph * sizer.nu))> A;
             // lower_bounds is l and upper_bounds is u
             cvec<(((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * (sizer.nu + sizer.nx)) + (((sizer.ph + 1) * sizer.ny) + (sizer.ph * sizer.nu))) + (sizer.ph + 1))> l, u;
         };
