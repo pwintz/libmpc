@@ -27,7 +27,8 @@ The linear MPC address the solution of the following convex quadratic optimizati
     \end{array}
 
 where the states :math:`x_k \in \mathbf{R}^{n_x}`, the outputs :math:`y_k \in \mathbf{R}^{n_y}` and the inputs :math:`u_k \in \mathbf{R}^{n_u}` are constrained to be between some lower and upper bounds.
-THe states and the inputs can be also subjected to the so called "scalar constraints", where :math:`x_s` and :math:`u_s` are constant vectors. The problem is solved repeatedly for varying initial state :math:`\bar{x} \in \mathbf{R}^{n_x}`.
+THe states and the inputs can be also subjected to the so called "scalar constraints", where :math:`x_s` and :math:`u_s` are constant vectors. 
+The problem is solved repeatedly for varying initial state :math:`\bar{x} \in \mathbf{R}^{n_x}`.
 
 The underlying linear system used within the MPC is defined as
 
@@ -65,8 +66,8 @@ The underlying non-linear system used within the MPC is defined as
         y_k &= g(x_k, u_k)
     \end{align}
 
-in case of continuos time system the function :math:`\dot x = f(x, u)` should be interpreted as the vector field of the desired dynamical system. 
-The dynamical system is transformed into discrete-time using the zero-order hold (ZOH) approximation method internally.
+in case of continuous time system the function :math:`\dot x = f(x, u)` should be interpreted as the vector field of the desired dynamical system. 
+The dynamical system is transformed into discrete-time using the trapezoidal rule internally.
 
 Tutorial
 ========
@@ -77,9 +78,9 @@ Please refers to the :ref:`libmpc++ API references<libmpc++-api>` for a full lis
 Allocation
 ----------
 
-The main classes you deal with are the API interface to the linear and non-linear MPC, called **LMPC** and **NLMPC** respectively. Depending on the allocation type desired
-there are two ways of creating these objects, one by using template and one by providing the dimensions as constructor arguments. The first can be used when the dimensions of the MPC problem are
-know at the compile time and the latter in the other case.
+The main classes you deal with are the API interface to the linear and non-linear MPC, called **LMPC** and **NLMPC** respectively. 
+Depending on the allocation type desired there are two ways of creating these objects, one by using template and one by providing the dimensions as constructor arguments. 
+The first can be used when the dimensions of the MPC problem are know at the compile time and the latter in the other case.
 
 Static allocation
 
@@ -108,7 +109,12 @@ Non-linear MPC solver (nlopt)
         
     params.relative_ftol = 1e-10;
     params.relative_xtol = 1e-10;
+    params.absolute_ftol = 1e-10;
+    params.absolute_xtol = 1e-10;
+    params.time_limit = 0;
+    
     params.hard_constraints = true;
+    params.enable_warm_start = false;
 
     nlmpc.setOptimizerParameters(params);
 
@@ -131,6 +137,61 @@ Linear MPC solver (OSQP)
     params.polish = true;
 
     lmpc.setOptimizerParameters(params);
+
+Optimization result
+-------------------
+
+The optimization result is stored in the **Result** structure. The structure contains the following fields:
+
+* solver_status: the return code of the optimization solver
+* is_feasible: a boolean flag that indicates if the optimal solution is feasible
+* solver_status_msg: the status message of the optimization solver
+* cost: the optimal cost of the optimization problem
+* status: the status of the MPC
+* cmd: the optimal control input
+
+.. code-block:: c++
+
+    Result<Tnu> res = ctrl.optimize(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
+
+    std::cout << "Solver status code: " << res.solver_status << std::endl;
+    std::cout << "Is feasible: " << res.is_feasible << std::endl;
+    std::cout << "Solver status message: " << res.solver_status_msg << std::endl;
+    std::cout << "Cost: " << res.cost << std::endl;
+    std::cout << "Status: " << res.status << std::endl;
+    std::cout << "Control input: " << res.cmd.transpose() << std::endl;
+
+The return code of the optimization solver changes depending on the solver used and it is described when possible
+by the status message. To have a coherent status code of the optimization problem the **status** field is used. 
+The status can be one of the following:
+
+* SUCCESS (0): the optimization problem has been solved
+* MAX_ITERATION (1): the optimization problem has reached the maximum number of iterations or the maximum time limit
+* INFEASIBLE (2): the optimization problem is infeasible
+* ERROR (3): an error occurred during the optimization
+* UNKNOWN (4): the status of the optimization problem is unset or unknown
+
+.. code-block:: c++
+    enum ResultStatus
+        {
+            SUCCESS,
+            MAX_ITERATION,
+            INFEASIBLE,
+            ERROR,
+            UNKNOWN
+        };
+
+If needed the optimal sequence along the prediction horizon can be retrieved by calling the **getOptimalSequence** method.
+The sequence contains also the initial condition of the optimization problem.
+
+.. code-block:: c++
+
+    OptSequence<Tnx, Tny, Tnu, Tph + 1> seq = ctrl.getOptimalSequence();
+    
+    std::cout << "Optimal sequence: " << std::endl;
+    std::cout << seq.state << std::endl;
+    std::cout << seq.input << std::endl;
+    std::cout << seq.output << std::endl;
 
 Linear MPC (LMPC)
 -----------------
@@ -210,14 +271,16 @@ This example shows how to regulate a quadcopter about a reference state with con
     umax << 13, 13, 13, 13;
     umax.array() -= u0;
 
-    lmpc.setConstraints(xmin, umin, ymin, xmax, umax, ymax, {0, pred_hor});
+    lmpc.setStateBounds(xmin, xmax, {0, pred_hor});
+    lmpc.setInputBounds(umin, umax, {0, pred_hor});
+    lmpc.setOutputBounds(ymin, ymax, {0, pred_hor});
 
     mpc::cvec<Tny> yRef;
     yRef << 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
     lmpc.setReferences(yRef, mpc::cvec<Tnu>::Zero(), mpc::cvec<Tnu>::Zero(), {0, pred_hor});
 
-    auto res = lmpc.step(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
+    auto res = lmpc.optimize(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
     lmpc.getOptimalSequence();
 
 Non-linear MPC (LMPC)
@@ -230,7 +293,7 @@ This example shows how to drives the states of a Van der Pol oscillator to zero 
     double ts = 0.1;
 
     nlmpc.setLoggerLevel(mpc::Logger::log_level::NORMAL);
-    nlmpc.setContinuosTimeModel(ts);
+    nlmpc.setDiscretizationSamplingTime(ts);
 
     auto stateEq = [&](mpc::cvec<Tnx>& dx,
                        const mpc::cvec<Tnx>& x,
@@ -270,7 +333,7 @@ This example shows how to drives the states of a Van der Pol oscillator to zero 
     auto r = nlmpc.getLastResult();
 
     for (;;) {
-        r = nlmpc.step(modelX, r.cmd);
+        r = nlmpc.optimize(modelX, r.cmd);
         auto seq = nlmpc.getOptimalSequence();
         stateEq(modeldX, modelX, r.cmd);
         modelX += modeldX * ts;
@@ -283,7 +346,8 @@ This example shows how to drives the states of a Van der Pol oscillator to zero 
 Import libmpc++ in your project
 -------------------------------
 
-libmpc++ is a header only library, so you can just copy the content of the include folder in your project. If your project uses CMake, you can import libmpc++ as a package with the following commands:
+libmpc++ is a header only library, so you can just copy the content of the include folder in your project. 
+If your project uses CMake, you can import libmpc++ as a package with the following commands:
 
 .. code-block:: cmake
 

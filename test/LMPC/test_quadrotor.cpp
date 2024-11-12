@@ -95,7 +95,9 @@ TEST_CASE(
     uminmat.setZero();
     umaxmat.setZero();
 
-    REQUIRE(optsolver.setConstraints(xminmat, uminmat, yminmat, xmaxmat, umaxmat, ymaxmat));
+    REQUIRE(optsolver.setStateBounds(xminmat, xmaxmat));
+    REQUIRE(optsolver.setInputBounds(uminmat, umaxmat));
+    REQUIRE(optsolver.setOutputBounds(yminmat, ymaxmat));
 
     mpc::cvec<Tnx> xmin, xmax;
     xmin << -M_PI / 6, -M_PI / 6, -mpc::inf, -mpc::inf, -mpc::inf, -1,
@@ -117,8 +119,13 @@ TEST_CASE(
     umax << 13, 13, 13, 13;
     umax.array() -= u0;
 
-    REQUIRE(optsolver.setConstraints(xmin, umin, ymin, xmax, umax, ymax, {0, Tph}));
-    REQUIRE(optsolver.setConstraints(xmin, umin, ymin, xmax, umax, ymax, {0, 1}));
+    REQUIRE(optsolver.setStateBounds(xmin, xmax, {0, Tph}));
+    REQUIRE(optsolver.setInputBounds(umin, umax, {0, Tph}));
+    REQUIRE(optsolver.setOutputBounds(ymin, ymax, {0, Tph}));
+
+    REQUIRE(optsolver.setStateBounds(xmin, xmax, {0, 1}));
+    REQUIRE(optsolver.setInputBounds(umin, umax, {0, 1}));
+    REQUIRE(optsolver.setOutputBounds(ymin, ymax, {0, 1}));
     
     REQUIRE(optsolver.setScalarConstraint(-mpc::inf, mpc::inf, mpc::cvec<Tnx>::Ones(), mpc::cvec<Tnu>::Ones(), {-1, -1}));
     REQUIRE(optsolver.setScalarConstraint(0, -mpc::inf, mpc::inf, mpc::cvec<Tnx>::Ones(), mpc::cvec<Tnu>::Ones()));
@@ -133,14 +140,18 @@ TEST_CASE(
     params.maximum_iteration = 250;
     optsolver.setOptimizerParameters(params);
 
-    REQUIRE(optsolver.setExogenuosInputs(mpc::mat<Tndu, Tph>::Zero()));
-    REQUIRE(optsolver.setExogenuosInputs(mpc::cvec<Tndu>::Zero(), {0, Tph}));
+    REQUIRE(optsolver.setExogenousInputs(mpc::mat<Tndu, Tph>::Zero()));
+    REQUIRE(optsolver.setExogenousInputs(mpc::cvec<Tndu>::Zero(), {0, Tph}));
 
-    auto res = optsolver.step(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
+    auto res = optsolver.optimize(mpc::cvec<Tnx>::Zero(), mpc::cvec<Tnu>::Zero());
     auto seq = optsolver.getOptimalSequence();
     (void)seq;
 
     mpc::cvec<4> testRes;
     testRes << -0.9916, 1.74839, -0.9916, 1.74839;
+
+    std::cout << "Expected result: " << testRes << std::endl;
+    std::cout << "Obtained result: " << res.cmd << std::endl;
+
     REQUIRE(res.cmd.isApprox(testRes, 1e-4));
 }

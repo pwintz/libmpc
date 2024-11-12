@@ -10,9 +10,9 @@ written in standard C++20 and provides static and dynamic memory allocation via 
 Linux, MacOs and Windows and comes with a limited set of dependecies. It provides:
 
 * Support for linear and non-linear MPC optimal control problem formulation
-* Handles discrete-time and continuos-time (for the non-linear MPC only) system's dynamics definition
+* Handles discrete-time and continuous-time (for the non-linear MPC only) system's dynamics definition
 * Different length for the prediction and control horizon
-* Automatic Jacobian approximation for non-linear MPC
+* Automatic Jacobian approximation (using the trapezoidal rule) for non-linear MPC
 * Header-only implementation
 * Free/open-source software
 

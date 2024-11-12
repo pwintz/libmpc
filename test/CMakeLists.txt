@@ -1,5 +1,5 @@
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux") 
-    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wfatal-errors -Werror=return-type -g -O0 -no-pie -fno-pie")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(CMAKE_CXX_FLAGS "-Wsuggest-override -Wall -Werror=suggest-override -Wextra -Wfatal-errors -Werror=return-type -g -O0 -no-pie -fno-pie")
     message("Adding g++ specific flags")
 endif()
 
@@ -43,6 +43,7 @@ set(MPC_TEST_LIB_SOURCES
     "NLMPC/test_constraints.cpp"
     "NLMPC/test_objective.cpp"
     "NLMPC/test_common.cpp"
+    "NLMPC/test_nloptimizer.cpp"
     "LMPC/test_lmpc.cpp"
     "LMPC/test_mutiple_instances.cpp"
     "test_utils.cpp"

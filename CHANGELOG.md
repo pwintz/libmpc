@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.6.2] - 2024-07-24
+### Added
+- The `Result` struct now contains the feasibility of the solution vector in the `is_feasible` field
+
+### Fixed
+- Version 0.6 and 0.6.1 were affected by a bug which was preventing the proper computation of the Jacobian of the user-defined inequality constraints. This bug has been fixed in this version
+
+## [0.6.1] - 2024-06-07
+### Fixed
+- Fixed the horizon slicing for the non-linear mpc. The horizon slicing was not working properly when set via the HorizonSlice struct
+
+## [0.6.0] - 2024-06-05
+### Added
+- Added support for input and state bound constraints in the non-linear mpc. These constraints are actually restricing the search space of the optimization problem
+and are obeyed by the solver also during intermediate steps of the optimization problem
+- Added warm start support in the non-linear mpc. The warm start is disabled by default and can be enabled using the parameter `enable_warm_start`
+
+### Changed
+- Breaking change: The stopping criterias in the non-linear mpc parameters are now disabled by default. The only enabled criteria is the maximum number of iterations
+- Breaking change: The optimal sequence returned by the linear and non-linear mpc is now containing also the initial condition
+- The Jacobians of the constraints in the non-linear mpc are now estimated using the trapeizoial rule
+- The functions to set the bound constraints now uses a dedicated structure to define the horizon span
+- Breaking change: The functions setConstraints are now split in setStateBounds, setInputBounds and setOutputBounds
+- Breaking change: The fields retcode and status_msg in the result struct of the non-linear mpc are now solver_status and solver_status_msg respectively
+
+## [0.5.0] - 2024-05-17
+### Added
+- Python bindings for the library using pybind11 (pympcxx)
+- The result struct now contains a string to describe the status of the optimization problem
+- Added new parameters for the nonlinear mpc (time_limit, absolute_ftol, absolute_xtol)
+
+### Changed
+- Breaking change: some of the APIs have been refactored. New APIs: setDiscretizationSamplingTime, setExogenousInputs, optimize
+substitute setContinuosTimeModel, setExogenuosInputs, step
+- Improved error handling in the NLopt interface
+
+### Fixed
+- The set of the discretization sampling time was not working properly in the non-linear mpc
+
 ## [0.4.2] - 2024-01-14
 ### Added
 - Added examples to show how to use the library

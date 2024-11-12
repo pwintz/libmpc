@@ -33,7 +33,7 @@ namespace mpc
          * method ensures the correct problem dimensions assigment has been
          * already performed
          */
-        virtual void onInit() = 0;
+        virtual void onInit() override = 0;
         /**
          * @brief Abstract setter for the optimizer parameters
          *
@@ -50,7 +50,7 @@ namespace mpc
         virtual void run(const cvec<sizer.nx> &x0, const cvec<sizer.nu> &u0) = 0;
 
         Result<sizer.nu> result;
-        OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph> sequence;
+        OptSequence<sizer.nx, sizer.ny, sizer.nu, sizer.ph+1> sequence;
 
     protected:
         double currentSlack;

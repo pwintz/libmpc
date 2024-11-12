@@ -37,7 +37,7 @@ namespace mpc
     public:
         Model() : IComponent<sizer>()
         {
-            isContinuosTime = false;
+            isContinuousTime = false;
         }
 
         /**
@@ -46,7 +46,7 @@ namespace mpc
          * method ensures the correct problem dimensions assigment has been
          * already performed.
          */
-        void onInit()
+        void onInit() override
         {
         }
 
@@ -76,7 +76,7 @@ namespace mpc
             checkOrQuit();
 
             mat<sizer.ph + 1, sizer.ny> Ymat;
-            Ymat.resize(ph() + 1, ny());
+            COND_RESIZE_MAT(sizer,Ymat,ph() + 1, ny());
             Ymat.setZero();
 
             if (hasOutputModel())
@@ -84,7 +84,7 @@ namespace mpc
                 for (size_t i = 0; i < ph() + 1; i++)
                 {
                     cvec<sizer.ny> YmatRow;
-                    YmatRow.resize(ny());
+                    COND_RESIZE_CVEC(sizer,YmatRow, ny());
                     YmatRow.setZero();
 
                     outUser(YmatRow, Xmat.row(i), Umat.row(i), i);
@@ -96,17 +96,17 @@ namespace mpc
         }
 
         /**
-         * @brief Set if the provided dynamical model is in continuos time
+         * @brief Set if the provided dynamical model is in continuous time
          *
          * @param isContinuous system dynamics is defined in countinuos time
          * @param Ts discretization sample time, in general this is the inverse of the control loop frequency
          * @return true
          * @return false
          */
-        bool setContinuos(bool isContinuous, double Ts = 0)
+        bool setContinuous(bool isContinuous, double Ts = 0)
         {
             sampleTime = Ts;
-            isContinuosTime = isContinuous;
+            isContinuousTime = isContinuous;
             return true;
         }
 
@@ -138,7 +138,7 @@ namespace mpc
             return outUser = handle, true;
         }
 
-        bool isContinuosTime;
+        bool isContinuousTime;
         double sampleTime;
 
         typename IDimensionable<sizer>::StateFunHandle vectorField = nullptr;

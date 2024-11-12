@@ -39,10 +39,13 @@ namespace mpc
         using IDimensionable<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::eq;
 
     public:
-        using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::step;
+        using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::optimize;
         using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::setLoggerLevel;
         using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::setLoggerPrefix;
         using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::getLastResult;
+        using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::isSliceUnset;
+        using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::isPredictionHorizonSliceValid;
+        using IMPC<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>::isControlHorizonSliceValid;
 
     public:
         LMPC()
@@ -62,7 +65,7 @@ namespace mpc
         /**
          * @brief (NOT AVAILABLE) Set the discretization time step to use for numerical integration
          */
-        bool setContinuosTimeModel(const double /*ts*/)
+        bool setDiscretizationSamplingTime(const double /*ts*/) override
         {
             throw std::runtime_error("Linear MPC supports only discrete time systems");
             return false;
@@ -73,7 +76,7 @@ namespace mpc
          *
          * @param param desired parameters (the structure must be of type LParameters)
          */
-        void setOptimizerParameters(const Parameters &param)
+        void setOptimizerParameters(const Parameters &param) override
         {
             ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setParameters(param);
         }
@@ -82,7 +85,7 @@ namespace mpc
          * @brief (NOT AVAILABLE) Set the scaling factor for the control input
          *
          */
-        void setInputScale(const cvec<Tnu> /*scaling*/)
+        void setInputScale(const cvec<Tnu> /*scaling*/) override
         {
             throw std::runtime_error("Linear MPC does not support input scaling");
         }
@@ -91,111 +94,201 @@ namespace mpc
          * @brief (NOT AVAILABLE) Set the scaling factor for the dynamical system's states variables
          *
          */
-        void setStateScale(const cvec<Tnx> /*scaling*/)
+        void setStateScale(const cvec<Tnx> /*scaling*/) override
         {
             throw std::runtime_error("Linear MPC does not support state scaling");
         }
 
         /**
-         * @brief Set the state, input and output box constraints
-         *
-         * @param XMinMat minimum state matrix
-         * @param UMinMat minimum input matrix
-         * @param YMinMat minimum output matrix
-         * @param XMaxMat maximum state matrix
-         * @param UMaxMat maximum input matrix
-         * @param YMaxMat maximum output matrix
-         * @return true
-         * @return false
+         * @brief Sets the bounds for the state variables.
+         * 
+         * This function sets the lower and upper bounds for the state variables.
+         * 
+         * @param XMinMat The matrix containing the lower bounds for each state variable.
+         * @param XMaxMat The matrix containing the upper bounds for each state variable.
+         * @return True if the state bounds were successfully set, false otherwise.
          */
-        bool setConstraints(
-            const mat<Tnx, Tph> XMinMat, const mat<Tnu, Tph> UMinMat, const mat<Tny, Tph> YMinMat,
-            const mat<Tnx, Tph> XMaxMat, const mat<Tnu, Tph> UMaxMat, const mat<Tny, Tph> YMaxMat)
+        bool setStateBounds(const mat<Tnx, Tph> &XMinMat, const mat<Tnx, Tph> &XMaxMat) override
         {
-            Logger::instance().log(Logger::log_type::DETAIL) << "Setting constraints" << std::endl;
-            return builder.setConstraints(
-                XMinMat, UMinMat, YMinMat,
-                XMaxMat, UMaxMat, YMaxMat);
+            Logger::instance().log(Logger::log_type::DETAIL) << "Setting state bounds" << std::endl;
+            return builder.setStateBounds(XMinMat, XMaxMat);
         }
 
         /**
-         * @brief Set the state, input and output box constraints, the constraints are applied equally
-         * along the specified prediction horizon segment
-         *
-         * @param XMin minimum state vector
-         * @param UMin minimum input vector
-         * @param YMin minimum output vector
-         * @param XMax maximum state vector
-         * @param UMax maximum input vector
-         * @param YMax maximum output vector
-         * @param slice slice of the prediction horizon step [start end]
-         * (if both ends re set to -1 the whole prediction horizon is used)
-         * @return true
-         * @return false
+         * Sets the input bounds for the LMPC controller.
+         * 
+         * @param UMinMat The matrix representing the lower bounds of the inputs.
+         * @param UMaxMat The matrix representing the upper bounds of the inputs.
+         * @return True if the input bounds were successfully set, false otherwise.
          */
-        bool setConstraints(
-            const cvec<Tnx> XMin, const cvec<Tnu> UMin, const cvec<Tny> YMin,
-            const cvec<Tnx> XMax, const cvec<Tnu> UMax, const cvec<Tny> YMax,
-            const std::array<int, 2> slice)
+        bool setInputBounds(const mat<Tnu, Tch> &UMinMat, const mat<Tnu, Tch> &UMaxMat) override
+        {
+            Logger::instance().log(Logger::log_type::DETAIL) << "Setting input bounds" << std::endl;
+            return builder.setInputBounds(UMinMat, UMaxMat);
+        }
+
+        /**
+         * Sets the output bounds for the LMPC controller.
+         *
+         * @param YMinMat The matrix of lower bounds for the output variables.
+         * @param YMaxMat The matrix of upper bounds for the output variables.
+         * @return True if the output bounds were successfully set, false otherwise.
+         */
+        bool setOutputBounds(const mat<Tny, Tph> &YMinMat, const mat<Tny, Tph> &YMaxMat) override
+        {
+            Logger::instance().log(Logger::log_type::DETAIL) << "Setting output bounds" << std::endl;
+            return builder.setOutputBounds(YMinMat, YMaxMat);
+        }
+
+        /**
+         * Sets the state bounds for the LMPC (Learning Model Predictive Control) algorithm.
+         * 
+         * @param XMin The minimum state values for each dimension.
+         * @param XMax The maximum state values for each dimension.
+         * @param slice An array representing the slice of the prediction horizon to set the state bounds for.
+         *              If slice[0] and slice[1] are both -1, the state bounds will be set equally for the entire prediction horizon.
+         *              If slice[0] and slice[1] are valid indices, the state bounds will be set only for the specified segment of the prediction horizon.
+         * @return True if the state bounds were successfully set, false otherwise.
+         */
+        bool setStateBounds(const cvec<Tnx> &XMin, const cvec<Tnx> &XMax, const HorizonSlice& slice) override
         {
             // Replicate all along the prediction horizon
-            if (slice[0] == -1 && slice[1] == -1)
+            if (isSliceUnset(slice))
             {
                 mat<Tnx, Tph> XMinMat, XMaxMat;
-                mat<Tny, Tph> YMinMat, YMaxMat;
-                mat<Tnu, Tph> UMinMat, UMaxMat;
 
-                XMinMat.resize(nx(), ph());
-                YMinMat.resize(ny(), ph());
-                UMinMat.resize(nu(), ph());
-
-                XMaxMat.resize(nx(), ph());
-                YMaxMat.resize(ny(), ph());
-                UMaxMat.resize(nu(), ph());
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),XMinMat,nx(), ph());
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),XMaxMat,nx(), ph());
 
                 for (size_t i = 0; i < ph(); i++)
                 {
                     XMinMat.col(i) = XMin;
                     XMaxMat.col(i) = XMax;
-                    YMinMat.col(i) = YMin;
-                    YMaxMat.col(i) = YMax;
-
-                    if (i < ph())
-                    {
-                        UMinMat.col(i) = UMin;
-                        UMaxMat.col(i) = UMax;
-                    }
                 }
 
-                Logger::instance().log(Logger::log_type::DETAIL) << "Setting constraints equally on the horizon" << std::endl;
-                return builder.setConstraints(
-                    XMinMat, UMinMat, YMinMat,
-                    XMaxMat, UMaxMat, YMaxMat);
+                Logger::instance().log(Logger::log_type::DETAIL) << "Setting state bounds equally on the horizon" << std::endl;
+                return builder.setStateBounds(XMinMat, XMaxMat);
             }
             else
             {
                 // Replicate on segment of the prediction horizon
-                size_t start = static_cast<size_t>(slice[0]);
-                size_t end = static_cast<size_t>(slice[1]);
-
-                if (start >= end || start > ph() || end > ph() || start + end > ph())
-                {
-                    Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
-                    return false;
-                }
-                else
+                if (isPredictionHorizonSliceValid(slice))
                 {
                     bool ret = true;
 
-                    for (size_t i = start; i < end; i++)
+                    for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
                     {
-                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting constraints for the step " << i << std::endl;
-                        ret = ret && builder.setConstraints(i, XMin, UMin, YMin, XMax, UMax, YMax);
+                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting state bounds for the step " << i << std::endl;
+                        ret = ret && builder.setStateBounds(i, XMin, XMax);
                     }
 
                     return ret;
                 }
             }
+
+            return false;
+        }
+
+        /**
+         * Sets the input bounds for the LMPC controller.
+         *
+         * This function allows you to set the input bounds for the LMPC controller. 
+         * The input bounds define the allowable range of values for each input variable at each time step of the prediction horizon.
+         *
+         * @param UMin The lower bounds for the input variables.
+         * @param UMax The upper bounds for the input variables.
+         * @param slice An optional parameter that specifies a segment of the prediction horizon to set the input bounds for. 
+         * If not provided, the input bounds will be set for the entire prediction horizon.
+         *
+         * @return Returns true if the input bounds were successfully set, false otherwise.
+         */
+        bool setInputBounds(const cvec<Tnu> &UMin, const cvec<Tnu> &UMax, const HorizonSlice& slice) override
+        {
+            // Replicate all along the prediction horizon
+            if (isSliceUnset(slice))
+            {
+                mat<Tnu, Tch> UMinMat, UMaxMat;
+
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),UMinMat,nu(), ch());
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),UMaxMat,nu(), ch());
+
+                for (size_t i = 0; i < ch(); i++)
+                {
+                    UMinMat.col(i) = UMin;
+                    UMaxMat.col(i) = UMax;
+                }
+
+                Logger::instance().log(Logger::log_type::DETAIL) << "Setting input bounds equally on the horizon" << std::endl;
+                return builder.setInputBounds(UMinMat, UMaxMat);
+            }
+            else
+            {
+                // Replicate on segment of the prediction horizon
+                if (isControlHorizonSliceValid(slice))
+                {
+                    bool ret = true;
+
+                    for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
+                    {
+                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting input bounds for the step " << i << std::endl;
+                        ret = ret && builder.setInputBounds(i, UMin, UMax);
+                    }
+
+                    return ret;
+                }
+            }
+
+            return false;
+        }
+
+        /**
+         * Sets the output bounds for the prediction horizon.
+         * 
+         * @param YMin The lower bounds for the output variables.
+         * @param YMax The upper bounds for the output variables.
+         * @param slice An array representing the slice of the prediction horizon to set the bounds for.
+         *              If slice[0] and slice[1] are both -1, the bounds will be set for the entire horizon.
+         *              Otherwise, the bounds will be set for the segment of the horizon specified by slice[0] and slice[1].
+         * @return True if the output bounds were successfully set, false otherwise.
+         *         If the slice is out of bounds, an error message will be logged and false will be returned.
+         */
+        bool setOutputBounds(const cvec<Tny> &YMin, const cvec<Tny> &YMax, const HorizonSlice& slice) override
+        {
+            // Replicate all along the prediction horizon
+            if (isSliceUnset(slice))
+            {
+                mat<Tny, Tph> YMinMat, YMaxMat;
+
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),YMinMat,ny(), ph());
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),YMaxMat,ny(), ph());
+
+                for (size_t i = 0; i < ph(); i++)
+                {
+                    YMinMat.col(i) = YMin;
+                    YMaxMat.col(i) = YMax;
+                }
+
+                Logger::instance().log(Logger::log_type::DETAIL) << "Setting output bounds equally on the horizon" << std::endl;
+                return builder.setOutputBounds(YMinMat, YMaxMat);
+            }
+            else
+            {
+                // Replicate on segment of the prediction horizon
+                if(isPredictionHorizonSliceValid(slice))
+                {
+                    bool ret = true;
+
+                    for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
+                    {
+                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting output bounds for the step " << i << std::endl;
+                        ret = ret && builder.setOutputBounds(i, YMin, YMax);
+                    }
+
+                    return ret;
+                }
+            }
+
+            return false;
         }
 
         /**
@@ -262,16 +355,16 @@ namespace mpc
         bool setScalarConstraint(
             const double min, const double max,
             const cvec<Tnx> X, const cvec<Tnu> U,
-            const std::array<int, 2> slice)
+            const HorizonSlice& slice)
         {
             // Replicate all along the prediction horizon
-            if (slice[0] == -1 && slice[1] == -1)
+            if (isSliceUnset(slice))
             {
                 // replicate the bounds all along the prediction horizon
                 cvec<Tph> Min, Max;
 
-                Min.resize(ph());
-                Max.resize(ph());
+                COND_RESIZE_CVEC(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),Min,ph());
+                COND_RESIZE_CVEC(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),Max,ph());
 
                 for (size_t i = 0; i < ph(); i++)
                 {
@@ -285,19 +378,11 @@ namespace mpc
             else
             {
                 // Replicate on segment of the prediction horizon
-                size_t start = static_cast<size_t>(slice[0]);
-                size_t end = static_cast<size_t>(slice[1]);
-
-                if (start >= end || start > ph() || end > ph() || start + end > ph())
-                {
-                    Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
-                    return false;
-                }
-                else
+                if (isPredictionHorizonSliceValid(slice))
                 {
                     bool ret = true;
 
-                    for (size_t i = start; i < end; i++)
+                    for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
                     {
                         Logger::instance().log(Logger::log_type::DETAIL) << "Setting scalar constraints for the step " << i << std::endl;
                         ret = ret && builder.setScalarConstraint(i, min, max, X, U);
@@ -306,6 +391,8 @@ namespace mpc
                     return ret;
                 }
             }
+
+            return false;
         }
 
         /**
@@ -350,18 +437,18 @@ namespace mpc
             const cvec<Tny> &OWeight,
             const cvec<Tnu> &UWeight,
             const cvec<Tnu> &DeltaUWeight,
-            const std::array<int, 2> slice)
+            const HorizonSlice &slice)
         {
             // Replicate all along the prediction horizon
-            if (slice[0] == -1 && slice[1] == -1)
+            if (isSliceUnset(slice))
             {
                 mat<Tny, Tph> OWeightMat;
                 mat<Tnu, Tph> UWeightMat;
                 mat<Tnu, Tph> DeltaUWeightMat;
 
-                OWeightMat.resize(ny(), ph());
-                UWeightMat.resize(nu(), ph());
-                DeltaUWeightMat.resize(nu(), ph());
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),OWeightMat,ny(), ph());
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),UWeightMat,nu(), ph());
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),DeltaUWeightMat,nu(), ph());
 
                 for (size_t i = 0; i < ph(); i++)
                 {
@@ -373,28 +460,24 @@ namespace mpc
                 Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights equally on the horizon" << std::endl;
                 return builder.setObjective(OWeightMat, UWeightMat, DeltaUWeightMat);
             }
-
-            // Replicate on segment of the prediction horizon
-            size_t start = static_cast<size_t>(slice[0]);
-            size_t end = static_cast<size_t>(slice[1]);
-
-            if (start >= end || start > ph() || end > ph() || start + end > ph())
-            {
-                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
-                return false;
-            }
             else
             {
-                bool ret = true;
-
-                for (size_t i = start; i < end; i++)
+                // Replicate on segment of the prediction horizon
+                if(isPredictionHorizonSliceValid(slice))
                 {
-                    Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights for the step " << i << std::endl;
-                    ret = ret && builder.setObjective(i, OWeight, UWeight, DeltaUWeight);
-                }
+                    bool ret = true;
 
-                return ret;
+                    for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
+                    {
+                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting weights for the step " << i << std::endl;
+                        ret = ret && builder.setObjective(i, OWeight, UWeight, DeltaUWeight);
+                    }
+
+                    return ret;
+                }
             }
+
+            return false;
         }
 
         /**
@@ -438,71 +521,67 @@ namespace mpc
         {
 
             Logger::instance().log(Logger::log_type::DETAIL) << "Setting disturbances matrices" << std::endl;
-            return builder.setExogenuosInput(Bd, Dd);
+            return builder.setExogenousInput(Bd, Dd);
         }
 
         /**
-         * @brief Set the exogenuos inputs vector
+         * @brief Set the exogenous inputs vector
          *
-         * @param uMeas measured exogenuos input
+         * @param uMeas measured exogenous input
          * @return true
          * @return false
          */
-        bool setExogenuosInputs(
+        bool setExogenousInputs(
             const mat<Tndu, Tph> &uMeasMat)
         {
-            return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenuosInputs(uMeasMat);
+            return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenousInputs(uMeasMat);
         }
 
         /**
-         * @brief Set the exogenuos inputs vector, the exogenuos inputs are assumed to be constant
+         * @brief Set the exogenous inputs vector, the exogenous inputs are assumed to be constant
          * along the specified prediction horizon segment
          *
-         * @param uMeas measured exogenuos input
+         * @param uMeas measured exogenous input
          * @param slice slice of the prediction horizon [start end]
          * (if both ends re set to -1 the whole prediction horizon is used)
          * @return true
          * @return false
          */
-        bool setExogenuosInputs(
+        bool setExogenousInputs(
             const cvec<Tndu> &uMeas,
-            const std::array<int, 2> slice)
+            const HorizonSlice& slice)
         {
-            // Replicate all along the prediction horizon
-            if (slice[0] == -1 && slice[1] == -1)
+            // Replicate all along the control horizon
+            if (isSliceUnset(slice))
             {
                 mat<Tndu, Tph> uMeasMat;
 
-                uMeasMat.resize(ndu(), ph());
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),uMeasMat,ndu(), ph());
 
                 for (size_t i = 0; i < ph(); i++)
                 {
                     uMeasMat.col(i) = uMeas;
                 }
 
-                return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenuosInputs(uMeasMat);
-            }
-
-            // Replicate on segment of the prediction horizon
-            size_t start = static_cast<size_t>(slice[0]);
-            size_t end = static_cast<size_t>(slice[1]);
-
-            if (start >= end || start > ph() || end > ph() || start + end > ph())
-            {
-                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
-                return false;
+                return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenousInputs(uMeasMat);
             }
             else
             {
-                bool ret = true;
-
-                for (size_t i = start; i < end; i++)
+                // Replicate on segment of the control horizon
+                if(isControlHorizonSliceValid(slice))
                 {
-                    ret = ret && ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenuosInputs(i, uMeas);
-                }
+                    bool ret = true;
 
-                return ret;
+                    for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
+                    {
+                        ret = ret && ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setExogenousInputs(i, uMeas);
+                    }
+
+                    return ret;
+                }
             }
+
+            return false;
         }
 
         /**
@@ -538,18 +617,18 @@ namespace mpc
             const cvec<Tny> outRef,
             const cvec<Tnu> cmdRef,
             const cvec<Tnu> deltaCmdRef,
-            const std::array<int, 2> slice)
+            const HorizonSlice& slice)
         {
             // Replicate all along the prediction horizon
-            if (slice[0] == -1 && slice[1] == -1)
+            if (isSliceUnset(slice))
             {
                 mat<Tny, Tph> outRefMat;
                 mat<Tnu, Tph> cmdRefMat;
                 mat<Tnu, Tph> deltaCmdRefMat;
 
-                outRefMat.resize(ny(), ph());
-                cmdRefMat.resize(nu(), ph());
-                deltaCmdRefMat.resize(nu(), ph());
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),outRefMat,ny(), ph());
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),cmdRefMat,nu(), ph());
+                COND_RESIZE_MAT(MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0),deltaCmdRefMat,nu(), ph());
 
                 for (size_t i = 0; i < ph(); i++)
                 {
@@ -560,28 +639,24 @@ namespace mpc
 
                 return ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setReferences(outRefMat, cmdRefMat, deltaCmdRefMat);
             }
-
-            // Replicate on segment of the prediction horizon
-            size_t start = static_cast<size_t>(slice[0]);
-            size_t end = static_cast<size_t>(slice[1]);
-
-            if (start >= end || start > ph() || end > ph() || start + end > ph())
-            {
-                Logger::instance().log(Logger::log_type::ERROR) << "The horizon slice is out of bounds" << std::endl;
-                return false;
-            }
             else
             {
-                bool ret = true;
-
-                for (size_t i = start; i < end; i++)
+                // Replicate on segment of the prediction horizon
+                if(isPredictionHorizonSliceValid(slice))
                 {
-                    Logger::instance().log(Logger::log_type::DETAIL) << "Setting references for the step " << i << std::endl;
-                    ret = ret && ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setReferences(i, outRef, cmdRef, deltaCmdRef);
-                }
+                    bool ret = true;
 
-                return ret;
+                    for (size_t i = (size_t)slice.start; i < (size_t)slice.end; i++)
+                    {
+                        Logger::instance().log(Logger::log_type::DETAIL) << "Setting references for the step " << i << std::endl;
+                        ret = ret && ((LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)> *)optPtr)->setReferences(i, outRef, cmdRef, deltaCmdRef);
+                    }
+
+                    return ret;
+                }
             }
+
+            return false;
         }
 
         /**
@@ -650,7 +725,7 @@ namespace mpc
         /**
          * @brief Initilization hook for the linear interface
          */
-        void onSetup()
+        void onSetup() override
         {
             builder.initialize(nx(), nu(), ndu(), ny(), ph(), ch());
             optPtr = new LOptimizer<MPCSize(Tnx, Tnu, Tndu, Tny, Tph, Tch, 0, 0)>();
@@ -668,7 +743,7 @@ namespace mpc
          *
          * @warning This function is not available for use.
          */
-        void onModelUpdate(const cvec<Tnx> /*x0*/)
+        void onModelUpdate(const cvec<Tnx> /*x0*/) override
         {
         }
 

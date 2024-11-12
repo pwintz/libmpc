@@ -6,6 +6,11 @@ is tested to work on Linux, macOS and Windows.
 
 The libmpc++ website can be found at the following link: https://altairlab.gitlab.io/optcontrol/libmpc/
 
+Starting from the version **0.5.0** the library is also available as a Python package (https://pypi.org/project/pympcxx/). The Python package is available on PyPI and can be installed using pip:
+```
+pip install pympcxx
+```
+
 ## Dependecies
 The library depends on the following external libraries which must be installed on the machine before using libmpc++
 
@@ -24,6 +29,7 @@ There is also a collection of examples that guide you through the most important
 * `quadrotor_ex.cpp`: example of a linear MPC for a quadrotor regulation problem
 * `ugv_ex.cpp`: example of a non-linear MPC for a UGV tracking problem with obstacles
 * `vanderpol_ex.cpp`: example of a non-linear MPC for a Van der Pol oscillator regulation problem
+* `networked_oscillator_ex.cpp`: example of a non-linear MPC for a set of coupled Van der Pol oscillator regulation problem
 
 The examples are written in C++ and can be compiled using CMake:
 
