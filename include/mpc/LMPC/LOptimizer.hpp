@@ -326,7 +326,7 @@ namespace mpc
                         }
                     }
 
-                    // this just the state mapping together with the optional exogeneous input
+                    // this just the state mapping together with the optional exogenous input
                     if (i == 0)
                     {
                         sequence.output.row(i) = builder->mapToOutput(sequence.state.row(i), extInputMeas.col(0));

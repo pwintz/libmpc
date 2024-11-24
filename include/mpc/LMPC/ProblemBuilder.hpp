@@ -610,7 +610,7 @@ namespace mpc
             }
 
             // state evolution depends on the initial condition and
-            // on the exogeneous inputs so they are changes over time
+            // on the exogenous inputs so they are changes over time
             leq.middleRows(0, nx()) = -x0;
             leq.middleRows(nx(), nu()) = -u0;
 
