@@ -255,11 +255,26 @@ namespace mpc
          */
         bool isPredictionHorizonSliceValid(const HorizonSlice& slice)
         {
-            if (slice.start >= slice.end || slice.start > (int)ph() || slice.end > (int)ph() || slice.start + slice.end > (int)ph())
+            if (slice.start >= slice.end)
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "The prediction horizon slice is out of bounds" << std::endl;
+                Logger::instance().log(Logger::log_type::ERROR) << "The prediction horizon slice is invalid. slice.start=" << slice.start << " must be (strictly) less than slice.end=" << slice.end << std::endl;
                 return false;
             }
+            if (slice.start > (int)ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The prediction horizon slice is invalid. slice.start=" << slice.start << " must be less than or equal to (int)ph()=" << (int)ph() << std::endl;
+                return false;
+            }
+            if (slice.end > (int)ph())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The prediction horizon slice is invalid. slice.end=" << slice.end << " must be less than or equal to (int)ph()=" << (int)ph() << std::endl;
+                return false;
+            }
+            // if (slice.start + slice.end > (int)ph())
+            // {
+            //     Logger::instance().log(Logger::log_type::ERROR) << "The prediction horizon slice is invalid. slice.start + slice.end=" << slice.start + slice.end << " must be less than or equal to (int)ph()=" << (int)ph() << std::endl;
+            //     return false;
+            // }
 
             return true;
         }
@@ -273,11 +288,30 @@ namespace mpc
          */
         bool isControlHorizonSliceValid(const HorizonSlice &slice)
         {
-            if (slice.start >= slice.end || slice.start > (int)ch() || slice.end > (int)ch() || slice.start + slice.end > (int)ch())
+            if (slice.start >= slice.end)
             {
-                Logger::instance().log(Logger::log_type::ERROR) << "The control horizon slice is out of bounds" << std::endl;
+                Logger::instance().log(Logger::log_type::ERROR) << "The control horizon slice is invalid. slice.start=" 
+                                    << slice.start << " must be (strictly) less than slice.end=" << slice.end << std::endl;
                 return false;
-            }
+            } 
+            if (slice.start > (int)ch())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The control horizon slice is invalid. slice.start=" 
+                                      << slice.start << " must be less than or equal to (int)ch()=" << (int)ch() << std::endl;
+                return false;
+            } 
+            if (slice.end > (int)ch())
+            {
+                Logger::instance().log(Logger::log_type::ERROR) << "The control horizon slice is invalid. slice.end=" 
+                                      << slice.end << " must be less than or equal to (int)ch()=" << (int)ch() << std::endl;
+                return false;
+            } 
+            // if (slice.start + slice.end > (int)ch())
+            // {
+            //     Logger::instance().log(Logger::log_type::ERROR) << "The control horizon slice is invalid. slice.start + slice.end=" 
+            //                           << slice.start + slice.end << " must be less than or equal to (int)ch()=" << (int)ch() << std::endl;
+            //     return false;
+            // }
 
             return true;
         }
